@@ -1,0 +1,49 @@
+﻿using NetStack.Compression;
+using Iterum.Network;
+using Iterum.Buffers2;
+using System.Collections.Generic;
+using UnityEngine;
+using EpicaShared;
+using System;
+
+namespace {{Namespace}}
+{
+    // {{Direction}}
+    public partial struct {{Name}} : ISerializablePacketSegment
+    {
+        public const byte Header = {{Header}};
+        
+        {{ for ranges in BoundedRanges ~}}
+        private static BoundedRange[] {{ ranges.Key }} = { 
+            {{ for range in ranges.Value ~}}
+            new BoundedRange({{range.min}}f, {{range.max}}f, {{range.precision}}f),
+            {{ end ~}}
+        };
+        {{ end ~}}
+
+        public System.ArraySegment<byte> Serialize()
+        {
+            var data = BufferManager.Acquire();
+			data.AddByte(Header);
+
+            {{ for field in Fields ~}}
+            {{ field.Ser }}
+            {{ end ~}}
+
+            return BufferManager.ToData(data);
+        }
+
+        public void Deserialize(System.ArraySegment<byte> packet)
+        {
+            var data = BufferManager.ToBitBuffer(packet);
+            data.ReadByte();
+            
+            {{ for field in Fields ~}}
+            {{ field.Des }}
+            {{ end ~}}
+
+            BufferManager.Release(data);
+        }
+        
+    }
+}

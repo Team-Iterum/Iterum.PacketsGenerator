@@ -1,0 +1,72 @@
+using Iterum.Logs;
+{{ if IsServer }}
+{{ else }}
+using UnityEngine;
+{{ end }}
+using System;
+
+namespace Packets
+{	
+    public static class {{ if IsServer }}Server{{ else }}Client{{ end }}ProtocolDispatcher
+    {
+		#region Dispatch method
+		 
+		public static void Dispatch(int conn, ArraySegment<byte> data)
+        {
+            switch (data[0])
+            {
+                {{ for packet in Packets ~}}
+                    case {{ packet.Header }}:
+                        {
+                            var packet = default({{packet.Name}});						
+                            packet.Deserialize(data);
+                            
+                            try 
+                            {
+                                {{ if IsServer }}
+                                {{packet.EventName}}?.Invoke(conn, packet);
+                                {{ else }}
+                                {{packet.EventName}}?.Invoke(packet);
+                                {{ end }}
+                            }
+                            catch(System.Exception e) 
+                            {
+                                Log.Exception("Packet.{{packet.Name}}.{{ packet.Header }}", e);
+                            }
+                        }
+                        break;
+                {{ end }}
+            }
+        }
+		
+		#endregion
+
+		#region Delegates & Events
+		
+		{{ for packet in Packets ~}}
+            
+            {{ if IsServer }}
+            public delegate void {{packet.Name}}Delegate(int con, {{packet.Name}} data);
+            {{ else }}
+            public delegate void {{packet.Name}}Delegate({{packet.Name}} data);
+            {{ end }}
+            
+            public static event {{packet.Name}}Delegate {{packet.EventName}};
+		{{ end }}
+		
+		#endregion
+		
+        #region Unsubscribe All
+        
+        public static void UnsubscribeAll()
+        {
+            {{ for packet in Packets ~}}
+                if ({{packet.EventName}} != null) foreach (var e in {{packet.EventName}}.GetInvocationList()) {{packet.EventName}} -= (e as {{packet.Name}}Delegate);
+            {{ end }}
+            
+        }
+        
+        #endregion
+
+    }  
+}
